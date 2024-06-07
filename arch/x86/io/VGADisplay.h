@@ -32,5 +32,6 @@ class VGADisplay
         void setColor(char colorAttr);
         void setBlink(bool blinkAttr);
         void setBright(bool brigthAttr);
+        dchar getChar();
 };
 #endif

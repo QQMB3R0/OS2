@@ -86,6 +86,10 @@ void VGADisplay::setBlink(bool blinkAttr)
 void VGADisplay::setBright(bool brigthAttr)
 {
     isBright = brigthAttr;
+}
+dchar VGADisplay::getChar()
+{
+    return dchar();
 };
 
 void VGADisplay::goNewLine()

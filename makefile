@@ -5,7 +5,9 @@ ASM = nasm
 CFLAGS = -c -m32 -Wall -ffreestanding -nostdinc -nostdlib -lgcc
 AFLAGS = -f elf32
 LDFLAGS = -m elf_i386
-QEMUFLAGS =
+CFLAGS =  -c  -m32 -Wall -ffreestanding -nostdinc -nostdlib -lgcc
+AFLAGS =  -f  elf32
+LDFLAGS = -m elf_i386
 
 CFILES = $(shell find ./ -type f \( -name \*.cpp -o -name \*.c \))
 AFILES = $(shell find ./ -type f \( -iname \*.s -o -name \*.asm \))
@@ -27,6 +29,12 @@ BDIR = ./build
 build: startbuild $(SOURCE_FILES)
 	echo $(AFLAGS)
 	echo $(CFLAGS)
+OS_BINARY = $(BDIR)/kernel.bin
+BDIR = ./build
+
+.PHONY: install $(SOURCE_FILES)
+
+build: startbuild $(SOURCE_FILES)
 	@echo "Link object files..."
 	$(LD) $(LDFLAGS) -o $(OS_BINARY) -T $(LDFILE) $(OBJ_FILES)
 	@echo "Project was built"

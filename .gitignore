@@ -3,3 +3,5 @@ build
 
 # Operarting system's files needed to boot
 iso/os/*
+.vscode
+vscode
