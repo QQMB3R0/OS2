@@ -408,9 +408,9 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
             
         }else
         {
-            file_to_add->creation_date = CurrentDate();;
-            file_to_add->creation_time = CurrentTime();
-            file_to_add->times_tenths = CurrentTimeTenths();
+            file_to_add->creation_date = 0x00;
+            file_to_add->creation_time = 0x00;
+            file_to_add->times_tenths = 0x00;
             file_to_add->last_access = file_to_add->creation_date;
             file_to_add->time_last_operation = file_to_add->creation_date;
             file_to_add->date_last_operation = file_to_add->creation_time;
@@ -424,6 +424,7 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
                 return -1;
             }
             file_to_add->low_word = cluster_to_file & 0xF;
+            pt_entry *get_page(const virtual_address address);
             file_to_add->height_word = cluster_to_file >> 0x10;	
 			memcpy(metadata_file, file_to_add, sizeof(dir_entry_t));
 

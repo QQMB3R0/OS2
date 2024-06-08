@@ -22,7 +22,13 @@ VGADisplay& VGADisplay::operator<<(const char &c)
 
     return *this;
 };
-
+void VGADisplay::setBackSpace()
+{
+    *videoMem-- = ' ';
+    xCurr--;
+    videoMem = (dchar *)(VGADisplayInfo::videoMemAddr) 
+                + yCurr * VGADisplayInfo::width + xCurr;
+}
 VGADisplay& VGADisplay::operator++(int)
 {
     if(++xCurr == VGADisplayInfo::width)
@@ -44,7 +50,14 @@ VGADisplay& VGADisplay::operator++(int)
                 + yCurr * VGADisplayInfo::width + xCurr;
 
     return *this;
-};
+}
+
+void VGADisplay::setChar(uint8 hexNum)
+{
+    *videoMem = hexNum;
+    ;
+}
+
 
 VGADisplay& VGADisplay::operator<<(const char *c)
 {
@@ -87,11 +100,10 @@ void VGADisplay::setBright(bool brigthAttr)
 {
     isBright = brigthAttr;
 }
-dchar VGADisplay::getChar()
+char VGADisplay::getChar()
 {
-    return dchar();
-};
-
+    return *videoMem--;
+}
 void VGADisplay::goNewLine()
 {
     uint16 yCurrOld = yCurr;
@@ -109,8 +121,9 @@ bool VGADisplay::printChar(const char &c)
     switch(c)
     {
         case '\0': return true;
-        case '\n': this->goNewLine(); return true;
+        case '\n': this->goNewLine();return true;
         case '\t': this->goHorizontalTab(); return true;
+        case '\b': this->setBackSpace(); return true;
         default:
                    {
                         char attr = isBlink << 8 | isBright << 4

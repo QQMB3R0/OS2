@@ -22,7 +22,7 @@ extern "C" void ih_keyboard()
         if (keycode < 0)
          return;
         display << keyboard_map[keycode];
-
+        display.setChar(0x07);
    }
  
     

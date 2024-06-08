@@ -19,7 +19,6 @@ class VGADisplay
         void doShift();
         // 0 if passed char isn't escape sequence, else 1
         bool printChar(const char &c);
-        void goNewLine();
         void goHorizontalTab();
 
     public:
@@ -27,11 +26,15 @@ class VGADisplay
         VGADisplay(uint16 x, uint16 y);
         VGADisplay& operator<<(const char &c);
         VGADisplay& operator<<(const char *c);
+         void goNewLine();
+
         VGADisplay& operator++(int);
+        void setChar(uint8 hexNum);
+        void setBackSpace();
         void setShift(bool status);
         void setColor(char colorAttr);
         void setBlink(bool blinkAttr);
         void setBright(bool brigthAttr);
-        dchar getChar();
+        char getChar();
 };
 #endif

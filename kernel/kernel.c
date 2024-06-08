@@ -4,6 +4,7 @@
 #include "../arch/x86/io/Port.h"
 #include "../arch/x86/io/Keyboard.h"
 #include "../arch/x86/Idt/Idt.h"
+#include "../arch/x86/drivers/cli.h"
 void main()
 {
     	GlobalConstruct::terminalInit();
@@ -14,7 +15,9 @@ void main()
 	asm volatile("sti");
 	Keyboard keyboard;
 	keyboard.KB_init();
-//	asm("int $0x21");
+	cli term;
+	term.init_cli();
+
 	while(1);
 };
 

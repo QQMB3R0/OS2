@@ -32,7 +32,7 @@ struct Fat32Parameter_Block
     uint16 Nreserved_sectors;
     uint8  fat_number;
     uint16 Nroot_dir_entries;
-    uint16 total_sector;
+    uint16 total_sector_16;
     uint8  media;
     uint16 dat_size;
     uint16 sectors_per_track;

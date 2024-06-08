@@ -16,7 +16,7 @@ write_port:
 	out   dx, al  
 	ret
 inw_asm:
-	push edx,[esp + 4]
+	mov edx,[esp + 4]
 	mov	edx, eax
 	in 	ax, dx
 	pop edx

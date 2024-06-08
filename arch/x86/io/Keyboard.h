@@ -51,6 +51,7 @@ private:
     /* data */
 public:
     void KB_init();
+    char getChar();
 };
 extern "C" void ih_keyboard();
 
