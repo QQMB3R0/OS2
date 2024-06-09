@@ -11,11 +11,12 @@
 #include "../io/GlobalObj.h"
 #include "../memory/heap.h"
 #include "../memory/memory.h"
-class ata
+class AtaDriver
 {
-public:
-    uint16* ata_read_sector(uint32 lba, uint32 num_blocks);
-    int ata_write_sector(uint32 lba, uint32 num_blocks,const uint16* buffer);
-    
+    public:
+        void displayInfo();
+        AtaDriver();
+        uint16* ata_read_sector(uint32 lba, uint32 num_blocks);
+        int ata_write_sector(uint32 lba, uint32 num_blocks,const uint16* buffer);
 };
 #endif

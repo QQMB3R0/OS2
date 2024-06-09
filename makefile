@@ -2,20 +2,19 @@ CC = i686-elf-g++
 LD = ld
 ASM = nasm
 # test -O2 flag
-CFLAGS = -c -m32 -Wall -ffreestanding -nostdinc -nostdlib -lgcc
-AFLAGS = -f elf32
-LDFLAGS = -m elf_i386
-CFLAGS =  -c  -m32 -Wall -ffreestanding -nostdinc -nostdlib -lgcc
-AFLAGS =  -f  elf32
-LDFLAGS = -m elf_i386
+CFLAGS = -std=c++20 -c -m32 -Wall -ffreestanding -nostdinc -nostdlib -fno-rtti -mgeneral-regs-only
+AFLAGS = -f elf32 -i./mem/
+LDFLAGS = -m elf_i386 $(patsubst %,-L%,$(subst :, ,$(LIBS_PATH))) -lgcc
+QEMUFLAGS =
 
 CFILES = $(shell find ./ -type f \( -name \*.cpp -o -name \*.c \))
 AFILES = $(shell find ./ -type f \( -iname \*.s -o -name \*.asm \))
 LDFILE = $(shell find ./ -type f -name *.ld)
 SOURCE_FILES = $(CFILES) $(AFILES)
 OBJ_FILES = $(addprefix $(BDIR)/, $(addsuffix .o, $(basename $(SOURCE_FILES))))
+INCLUDE = ./include
 
-ifeq ($(DEBUG), true)
+ifdef DEBUG
 	CFLAGS := -g3 $(CFLAGS)
 	AFLAGS := -g $(AFLAGS)
 	QEMUFLAGS := -s -S $(QEMUFLAGS)
@@ -29,19 +28,13 @@ BDIR = ./build
 build: startbuild $(SOURCE_FILES)
 	echo $(AFLAGS)
 	echo $(CFLAGS)
-OS_BINARY = $(BDIR)/kernel.bin
-BDIR = ./build
-
-.PHONY: install $(SOURCE_FILES)
-
-build: startbuild $(SOURCE_FILES)
 	@echo "Link object files..."
-	$(LD) $(LDFLAGS) -o $(OS_BINARY) -T $(LDFILE) $(OBJ_FILES)
+	$(LD) -o $(OS_BINARY) -T $(LDFILE) $(OBJ_FILES) $(LDFLAGS) 
 	@echo "Project was built"
 
 $(CFILES):
 	mkdir -p $(BDIR)/$(@D)
-	$(CC) $(CFLAGS) -o $(BDIR)/$(addsuffix .o, $(basename $@)) $@
+	$(CC) $(CFLAGS) -I $(INCLUDE) -o $(BDIR)/$(addsuffix .o, $(basename $@)) $@
 
 $(AFILES):
 	mkdir -p $(BDIR)/$(@D)
@@ -49,6 +42,7 @@ $(AFILES):
 
 startbuild:
 	@echo $(OBJ_FILES)
+	rm -rf $(BDIR)
 	mkdir $(BDIR)
 	@echo "Compile source files..."
 
@@ -63,6 +57,7 @@ clean:
 	rm -rf ./iso/os/kernel.bin
 
 run:
-	 qemu-system-i386 $(QEMUFLAGS) -cdrom ./$(BDIR)/kernel.iso
+	qemu-img create image.img 4M
+	qemu-system-i386  -boot d -m 512 -hda image.img -cdrom ./$(BDIR)/kernel.iso $(QEMUFLAGS)
 
 all: clean build install run

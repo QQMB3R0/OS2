@@ -5,6 +5,8 @@
 #include "../arch/x86/io/Keyboard.h"
 #include "../arch/x86/Idt/Idt.h"
 #include "../arch/x86/drivers/cli.h"
+#include "../arch/x86/drivers/ata.h"
+
 void main()
 {
     	GlobalConstruct::terminalInit();
@@ -18,6 +20,14 @@ void main()
 	cli term;
 	term.init_cli();
 
-	while(1);
+	AtaDriver ataDriver;
+	ataDriver.displayInfo();
+
+	display << "Disk data: ";
+	char * buf = (char *)ataDriver.ata_read_sector(1, 1);
+	if(buf == nullptr) display << "data empty\n";
+	else display << (uint32)*buf;
+
+	// while(1);
 };
 

@@ -1,41 +1,52 @@
 #include "TypeConverter.h"
 
-void IntConverter::clearBuff()
+IntConverter::IntConverter()
+{
+    resetProps();
+};
+
+void IntConverter::resetProps()
 {
     for(int i = 0; i < 21; i++) buffer[i] = '\0';
+    index = bufferSize - 2;
 };
 
 char *IntConverter::intToChar(int n)
 {
-    clearBuff();
+    resetProps();
 
     int number = n >> 31;   // n < 0 - n = -1, else n = 0
     number = (n ^ number) - number; // Clear sign bit
 
     bool isNegative = n < 0;
-    unsigned int indx = 19;
 
-    do {
-        buffer[indx--] = 48 + (number % 10);
-        number /= 10;
-    }while(number != 0);
+    writeNumberToBuffer(number);
     
-    if(isNegative) buffer[indx--] = '-';
+    if(isNegative) buffer[index] = '-';
 
-    return &buffer[++indx];
+    return &buffer[index];
 };
 
-char *IntConverter::uintToChar(unsigned int n)
+char *IntConverter::uintToChar(const uint32 n)
 {
-    clearBuff();
-
-    unsigned int number = n;
-    unsigned int indx = 19;
-
-    do {
-        buffer[indx--] = 48 + (number % 10);
-        number /= 10;
-    }while(number != 0);
+    resetProps();
+    writeNumberToBuffer(n);
     
-    return &buffer[++indx];
+    return &buffer[++index];
+};
+
+char *IntConverter::uintToChar(const uint64 n)
+{
+    resetProps(); 
+    writeNumberToBuffer(n);
+
+    return &buffer[++index];
+};
+
+void IntConverter::writeNumberToBuffer(uint64 n)
+{
+    do {
+        buffer[index--] = '0' + (n % 10);
+        n /= 10;
+    }while(n != 0);
 };

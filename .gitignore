@@ -5,3 +5,6 @@ build
 iso/os/*
 .vscode
 vscode
+
+# Disk images
+*.img

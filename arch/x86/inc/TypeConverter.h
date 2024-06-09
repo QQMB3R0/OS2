@@ -1,17 +1,22 @@
 #ifndef TYPECONVERTER_H
 #define TYPECONVERTER_H
 
-#include "../io/VGADisplay.h"
+#include "../inc/types.h"
 
 class IntConverter
 {
     private:
-        char buffer[21];
-        void clearBuff();
+        const static unsigned int bufferSize = 21;
+        char buffer[bufferSize];
+        uint8 index;
+        void resetProps();
+        void writeNumberToBuffer(uint64 n);
 
     public:
+        IntConverter();
         char *intToChar(int n);
-        char *uintToChar(unsigned int n);
+        char *uintToChar(const uint32 n);
+        char *uintToChar(const uint64 n);
 };
 
 #endif
