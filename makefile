@@ -57,7 +57,6 @@ clean:
 	rm -rf ./iso/os/kernel.bin
 
 run:
-	qemu-img create image.img 4M
-	qemu-system-i386  -boot d -m 512 -hda image.img -cdrom ./$(BDIR)/kernel.iso $(QEMUFLAGS)
+	qemu-system-i386  -boot d -m 512 -drive file=image.img,if=ide,index=0,media=disk,format=raw -cdrom ./$(BDIR)/kernel.iso $(QEMUFLAGS)
 
 all: clean build install run

@@ -21,13 +21,15 @@ void main()
 	term.init_cli();
 
 	AtaDriver ataDriver;
-	ataDriver.displayInfo();
+
+	char buffer[2048] = "Hello, World!Hello, World!";
+	ataDriver.ata_write_sector(0, 1, (const uint16*)buffer);
 
 	display << "Disk data: ";
-	char * buf = (char *)ataDriver.ata_read_sector(1, 1);
+	char * buf = (char *)ataDriver.ata_read_sector(0, 1);
 	if(buf == nullptr) display << "data empty\n";
 	else display << (uint32)*buf;
 
-	// while(1);
+	while(1);
 };
 

@@ -16,7 +16,7 @@ byte Port::inb(unsigned short port)
 
 word Port::inw(unsigned short port)
 {
-   byte res;
+   word res;
    asm volatile("inw %w1, %w0"
                 :"=a"(res) : "Nd"(port) : "memory");
    return res;
