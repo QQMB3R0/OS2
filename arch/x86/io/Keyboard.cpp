@@ -21,7 +21,7 @@ extern "C" void ih_keyboard()
         keycode = Port::inb(KEYBOARD_DATA_PORT);
         if (keycode < 0)
          return;
-        display << keyboard_map[keycode];
+        display << (const char)keyboard_map[keycode];
         display.setChar(0x07);
    }
  

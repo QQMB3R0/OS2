@@ -1,20 +1,29 @@
 #include "Port.h"
+
 void Port::outb(unsigned short port, unsigned char value)
 {
-   write_port(port,value);
+   asm volatile("outb %b0, %w1\n\t"
+                :: "a" (value), "Nd" (port) : "memory");
 }
 
-char Port::inb(unsigned short port)
+byte Port::inb(unsigned short port)
 {
-   return read_port(port);
+   byte res;
+   asm volatile("inb %w1, %b0"
+                :"=a"(res) : "Nd"(port) : "memory");
+   return res;
 }
 
-unsigned short Port::inw(unsigned short port)
+word Port::inw(unsigned short port)
 {
-    return inw_asm(port);
+   word res;
+   asm volatile("inw %w1, %w0"
+                :"=a"(res) : "Nd"(port) : "memory");
+   return res;
 }
 
 void Port::outw(unsigned short port, unsigned int word)
 {
-     asm volatile("out %%ax, %%dx" : : "a" (word), "d" (port));
+   asm volatile("outw %w0, %w1\n\t"
+                :: "a" (word), "Nd" (port) : "memory");
 }

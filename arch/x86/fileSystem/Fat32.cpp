@@ -14,7 +14,7 @@ uint16 ext_root_cluster;
 
 int Fat32::fat_init()
 {
-    ata ata_d;
+    AtaDriver ata_d;
     uint16* cluster_data = ata_d.ata_read_sector(0,1);
     if (cluster_data == NULL) {
 		display<<"Function FAT_initialize: Error reading the first sector of FAT!\n";
@@ -51,7 +51,7 @@ int Fat32::fat_read(uint16 numCluster)
         display << "Function FATRead: invalid cluster number!\n";
         return -1;
     }
-    ata ata_d;
+    AtaDriver ata_d;
     if (fat_type == 32)
     {
         uint16 cluster_size = bytes_per_secors * secors_per_cluster;
@@ -84,7 +84,7 @@ int Fat32::fat_write(uint16 numCluster, uint16 table_value)
         display << "Function FATRead: invalid cluster number!\n";
         return -1;
     }
-    ata ata_d;
+    AtaDriver ata_d;
     if (fat_type == 32)
     {
         uint16 cluster_size = bytes_per_secors * secors_per_cluster;
@@ -192,7 +192,7 @@ uint16* Fat32::cluster_read(uint16 cluster_number)
         display << "Function cluster_read: invalid cluster number!\n";
         return NULL;
     }
-    ata ata_d;
+    AtaDriver ata_d;
 
    uint16 start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
    uint16* data_clusster = ata_d.ata_read_sector(start_sec,secors_per_cluster);
@@ -211,10 +211,10 @@ int Fat32::cluster_write(void* write_data, uint16 cluster_number)
         display << "Function cluster_write: invalid cluster number!\n";
         return -1;
     }
-    ata ata_d;
+    AtaDriver ata_d;
 
     uint16 start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
-    if (ata_d.ata_write_sector(start_sec, secors_per_cluster, (uint16*)write_data)!=1);
+    if (ata_d.ata_write_sector(start_sec, secors_per_cluster, (uint16*)write_data)!=1)
     {
         display << "Function cluster_write: An error occured with ata_write_sector, the area in sector";
         return -1;
@@ -364,7 +364,7 @@ int Fat32::dirSearch(const char *filepart, const uint16 cluster, dir_entry_t *fi
 
 int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
 {
-    ata ata_d;
+    AtaDriver ata_d;
     uint16* data_clusster = cluster_read(cluster);
     if (data_clusster == NULL)
     {
@@ -605,7 +605,7 @@ int Fat32::writeFile(Content *content, char *data)
                     char clear[secors_per_cluster];
 		            memset(clear, 0, secors_per_cluster);
                     uint16 start_sect = (cluster - 2) * (unsigned short)secors_per_cluster + first_data_sector;
-                    ata atad;
+                    AtaDriver atad;
                     atad.ata_write_sector(start_sect, secors_per_cluster, (uint16*)clear);
 					if (cluster_write(sector_data, cluster) != 0) {
 						display << "Function FAT_write_content: FAT_cluster_write encountered an error. Aborting...\n";

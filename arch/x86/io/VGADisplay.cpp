@@ -29,6 +29,25 @@ void VGADisplay::setBackSpace()
     videoMem = (dchar *)(VGADisplayInfo::videoMemAddr) 
                 + yCurr * VGADisplayInfo::width + xCurr;
 }
+
+VGADisplay& VGADisplay::operator<<(const uint32 number)
+{
+    IntConverter conv;
+
+    (*this) << conv.uintToChar(number);
+
+    return *this;
+};
+
+VGADisplay& VGADisplay::operator<<(const uint64 number)
+{
+    IntConverter conv;
+
+    (*this) << conv.uintToChar(number);
+
+    return *this;
+};
+
 VGADisplay& VGADisplay::operator++(int)
 {
     if(++xCurr == VGADisplayInfo::width)
