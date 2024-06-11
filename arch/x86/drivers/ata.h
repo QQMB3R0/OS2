@@ -1,7 +1,6 @@
 #ifndef ATA_H
 #define ATA_H
 
-#include "../inc/types.h"
 #include "../io/Port.h"
 #include "../io/GlobalObj.h"
 #include "../memory/heap.h"
@@ -13,8 +12,7 @@
 #define STAT_ERR  (1 << 0) // Indicates an error occurred. Send a new command to clear it
 
 // ATA ports defines
-#define IO_BASE_MASTER 0x1f0
-#define IO_BASE_SLAVE 0x170
+#define IO_BASE 0x1f0
 // Offset for IO port base
 #define DATA_REG 0
 #define R_ERROR_REG 1
@@ -38,12 +36,23 @@
 // Drive / Head Registers defines
 #define DRV_SLAVE (1 << 4)
 #define LBA (1 << 6)
-#define DRIVE_REG_CONST_BITS 0xA0
+#define DRIVE_REG_CONST_BITS 0xa0
 
 // Command register defines
-#define READ_DATA 0x20
+#define READ_DATA_CMD 0x20
+#define IDENTIFY_CMD 0xec
+
+// Status register defines
+#define BSY 0x80
+#define DRQ 0x08
+#define ERR 0x01
 
 #define IDENTIFY_BUF_SZ 256
+
+#define WAIT_BIT_DELAY 50
+
+#define MASTER_DRIVE 0
+#define SLAVE_DRIVE 1
 
 // Error register defines
 #define AMNF 1
@@ -55,26 +64,64 @@
 #define UNC (1 << 6)
 #define BBK (1 << 7)
 
-struct port
-{
-    uint16 value : 12;
-    port(uint16 v) : value(v){};
-};
+using size = uint32;
 
+struct drive
+{
+    uint16 id : 1;
+    drive(uint16 v) : id(v){};
+};
 
 class AtaDriver
 {
     private:
         uint8 error;
-        uint16 identifal_buf[IDENTIFY_BUF_SZ];
+        uint16_s identify_buf[IDENTIFY_BUF_SZ];
         bool is_master_drive_exist, is_slave_drive_exist;
+        bool is_master_ata, is_slave_ata;
     public:
         AtaDriver();
-        uint16* ata_read_sector(uint32 lba, uint32 num_blocks);
-        int ata_write_sector(uint32 lba, uint32 num_blocks,const uint16* buffer);
-        void four_ns_delay(struct port base);
+        /*
+            Retrun NULL if error. Error read property recomend.
+            Otherwise return pointer to duffer.
+         */
+        char * ata_read_sector(
+                               const uint32 lba,
+                               const uint32 num_blocks,
+                               const drive d = MASTER_DRIVE
+                               );
+        /*
+            Return true if error. Recommend. Error read property recomend.
+            Return false if data was write in buffer.
+         */
+        bool ata_write_sector(
+                             const uint32 lba,
+                             const uint32 num_blocks,
+                             const char* buffer,
+                             const drive d = MASTER_DRIVE
+                             );
+        void four_ns_delay();
+        /*
+            Return @error property.
+         */
         uint8 getError();
         void soft_reset();
-        void identify(struct port base);
+        void identify(drive d);
+        /*
+          Return true if ERR bit in the status register set
+         */
+        bool read_data_port(void *buffer);
+        /*
+          Return true if ERR bit in the status register set
+         */
+        bool write_data_port(const void *buffer);
+        /*
+            Return true if bit is not set. False in otherwise.
+         */
+        bool wait_bit_set(uint8 status_reg_bit);
+        /*
+            Return true if bit is not unset. False in otherwise.
+         */
+        bool wait_bit_unset(uint8 status_reg_bit);
 };
 #endif
