@@ -33,6 +33,7 @@ build: startbuild $(SOURCE_FILES)
 	@echo "Project was built"
 
 $(CFILES):
+	@test $${LIBS_PATH?Please set environment variable LIBS_PATH}
 	mkdir -p $(BDIR)/$(@D)
 	$(CC) $(CFLAGS) -I $(INCLUDE) -o $(BDIR)/$(addsuffix .o, $(basename $@)) $@
 

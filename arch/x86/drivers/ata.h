@@ -41,6 +41,7 @@
 // Command register defines
 #define READ_DATA_CMD 0x20
 #define IDENTIFY_CMD 0xec
+#define CACHE_FLUSH 0xe7
 
 // Status register defines
 #define BSY 0x80
@@ -81,19 +82,19 @@ class AtaDriver
         bool is_master_ata, is_slave_ata;
     public:
         AtaDriver();
-        /*
-            Retrun NULL if error. Error read property recomend.
-            Otherwise return pointer to duffer.
-         */
+        /**
+          * @retrun NULL if error. Error read property recomend.
+          *  Otherwise return pointer to duffer.
+          */
         char * ata_read_sector(
                                const uint32 lba,
                                const uint32 num_blocks,
                                const drive d = MASTER_DRIVE
                                );
-        /*
-            Return true if error. Recommend. Error read property recomend.
-            Return false if data was write in buffer.
-         */
+        /**
+          * @return true if error. Recommend. Error read property recomend.
+          * False if data was write in buffer.
+          */
         bool ata_write_sector(
                              const uint32 lba,
                              const uint32 num_blocks,
@@ -101,27 +102,34 @@ class AtaDriver
                              const drive d = MASTER_DRIVE
                              );
         void four_ns_delay();
-        /*
-            Return @error property.
-         */
+        /**
+          * @return error property.
+          */
         uint8 getError();
         void soft_reset();
         void identify(drive d);
-        /*
-          Return true if ERR bit in the status register set
-         */
+        /**
+          * @eturn true if ERR bit in the status register set
+          */
         bool read_data_port(void *buffer);
-        /*
-          Return true if ERR bit in the status register set
-         */
+        /**
+          * @return true if ERR bit in the status register set
+          */
         bool write_data_port(const void *buffer);
-        /*
-            Return true if bit is not set. False in otherwise.
-         */
+        /**
+          * @return true if bit is not set. False in otherwise.
+          */
         bool wait_bit_set(uint8 status_reg_bit);
-        /*
-            Return true if bit is not unset. False in otherwise.
-         */
+        /**
+          * @return true if bit is not unset. False in otherwise.
+          */
         bool wait_bit_unset(uint8 status_reg_bit);
+
+        /**
+          * Flush disk cache
+          *
+          * @param d Drive id (master or slave)
+          */
+        void cache_flush(const drive d);
 };
 #endif
