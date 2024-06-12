@@ -31,6 +31,17 @@ bool AtaDriver::wait_bit_unset(uint8 status_reg_bit)
     return false;
 };
 
+void AtaDriver::cache_flush(const drive d)
+{
+    Port::outb(IO_BASE + DRIVE_REG, LBA | DRIVE_REG_CONST_BITS | (d.id << 4));
+    Port::outb(IO_BASE + W_COMMAND_REG, CACHE_FLUSH);
+
+    if(wait_bit_unset(BSY))
+    {
+        soft_reset();
+    }
+};
+
 void AtaDriver::soft_reset()
 {
     Port::outb(CONTROL_BASE + W_DEVICE_CONTROL_REG, SRST);
@@ -62,6 +73,11 @@ bool AtaDriver::read_data_port(void *buffer)
         if(status & ERR)
         {
             this->error = error;
+            return true;
+        }
+        else if(status & BSY and wait_bit_unset(BSY))
+        {
+            soft_reset();
             return true;
         }
 
@@ -141,6 +157,7 @@ void AtaDriver::identify(drive d)
 
     status = Port::inb(R_STATUS_REG);
     if(status & ERR) return;
+    else
     {
         four_ns_delay();
         read_data_port(identify_buf);
@@ -154,6 +171,9 @@ AtaDriver::AtaDriver()
     is_master_ata = true;
     is_slave_ata = true;
 
+    cache_flush(MASTER_DRIVE);
+    cache_flush(SLAVE_DRIVE);
+
     identify(MASTER_DRIVE);
     identify(SLAVE_DRIVE);
 };
@@ -161,7 +181,7 @@ AtaDriver::AtaDriver()
 /*if you need to read one sector num_blocks = 1*/
 char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, const drive d)
 {
-    Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | ((lba >> 24) & 0xF));
+    Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | (d.id << 4) | ((lba >> 24) & 0xF));
     Port::outb(0x1F1, NULL);
     Port::outb(0x1F2, num_blocks);
     Port::outb(0x1F3, lba & 0xFF);
@@ -180,7 +200,7 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
         if(status & ERR)
         {
             error = Port::inb(IO_BASE + R_ERROR_REG);
-            return NULL;
+            return nullptr;
         }
      }
 
@@ -189,7 +209,7 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
     if(read_data_port(buffer))
     {
         memset(buffer, 0, SECTOR_SIZE * num_blocks);
-        return NULL;
+        return nullptr;
     }
 
     return buffer;
@@ -198,7 +218,7 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
 /*if you need to write one sector num_blocks = 1*/
 bool AtaDriver::ata_write_sector(const uint32 lba, const uint32 num_blocks, const char* buffer, const drive d)
 {
-    Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | ((lba >> 24) & 0xF));
+    Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | (d.id << 4) | ((lba >> 24) & 0xF));
     Port::outb(0x1F1, 0x00);
     Port::outb(0x1F2, num_blocks);
     Port::outb(0x1F3, lba & 0xFF);
@@ -219,10 +239,8 @@ bool AtaDriver::ata_write_sector(const uint32 lba, const uint32 num_blocks, cons
         }
     }
 
-    if(write_data_port(buffer))
-    {
-        return true;
-    }
+    bool result = write_data_port(buffer);
 
+    cache_flush(d);
     return false;
 };
