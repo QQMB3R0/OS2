@@ -1,5 +1,5 @@
+#ifndef VIRT_MEM_H
 #define VIRT_MEM_H
-#ifdef VIRT_MEM_H
 
 #include "../inc/types.h"
 #include "phys_mem.h"
