@@ -7,6 +7,8 @@
 #include "../arch/x86/drivers/cli.h"
 #include "../arch/x86/drivers/ata.h"
 #include "../arch/x86/inc/types.h"
+#include "../arch/x86/fileSystem/Fat32.h"
+
 #include "multiboot.h"
 // symbols from linker.ld for section addresses
  uint8 __kernel_section_start;
@@ -105,6 +107,9 @@ void main(unsigned long magic,unsigned long addr)
 	//display << "Hello, World!\n";
 	Idt i;
 	i.IDTinit();
+	Keyboard keyboard;
+	keyboard.KB_init();
+
 	asm volatile("sti");
 	mboot_info = (MULTIBOOT_INFO *)addr;
 	if (get_kernel_memory_map(&g_kmap, mboot_info) < 0) {
@@ -119,21 +124,21 @@ void main(unsigned long magic,unsigned long addr)
     	void *start = pmm_alloc_blocks(20);
     	void *end = start + (pmm_next_free_frame(1) * PMM_BLOCK_SIZE);
     	kheap_init(start, end);
-	Keyboard keyboard;
-	keyboard.KB_init();
+	//Fat32 fs;
+	//fs.fat_init();
 
-	cli term;
-	term.init_cli();
+	//cli term;
+	//term.init_cli();
 
-	AtaDriver ataDriver;
+	AtaDriver ataDriver ;
 
-//	char buffer[2048] = "WORKING!!\n";
-//	ataDriver.ata_write_sector(0, 1, buffer);
+	char buffer[2048] = "WORKING!!\n";
+	ataDriver.ata_write_sector(0, 1, buffer);
 
-//	display << "Disk data: ";
-//	uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
-//	if(buf == nullptr) display << "data empty\n";
-//	else display << (char *)buf;
+	display << "Disk data: ";
+	uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
+	if(buf == nullptr) display << "data empty\n";
+	else display << (char *)buf;
 	empty();
 
 	while(1);

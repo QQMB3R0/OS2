@@ -7,5 +7,8 @@ asm_ih_keyboard:
 	call ih_keyboard
     pop ax;
 iret
-
+global pause
+pause:
+	hlt
+	ret
 ;.end

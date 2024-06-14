@@ -1,10 +1,32 @@
 #include "ata.h"
 
+bool AtaDriver::is_drive_exist(const drive d)
+{
+    if(d.id == MASTER_DRIVE) return is_master_drive_exist;
+    else return is_slave_drive_exist;
+}
+
+void write_data_port::perform(void *buffer, size indx)
+{
+    Port::outw(IO_BASE + DATA_REG, ((uint16_s *)buffer)[indx]);
+};
+
+void read_data_port::perform(void *buffer, const size indx)
+{
+    uint16 data = Port::inw(IO_BASE + DATA_REG);
+    ((uint16_s *)buffer)[indx] = data;
+};
+
+uint8 AtaDriver::get_error()
+{
+    return error;
+};
+
 bool AtaDriver::wait_bit_set(uint8 status_reg_bit)
 {
     uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
 
-    for(uint8 i = 0; !(status & status_reg_bit); i++)
+    for(uint16 i = 0; !(status & status_reg_bit); i++)
     {
         if(i >= WAIT_BIT_DELAY)
         {
@@ -20,10 +42,11 @@ bool AtaDriver::wait_bit_unset(uint8 status_reg_bit)
 {
     uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
 
-    for(uint8 i = 0; status & status_reg_bit; i++)
+    for(uint16 i = 0; status & status_reg_bit; i++)
     {
         if(i >= WAIT_BIT_DELAY)
         {
+            if(status_reg_bit == BSY) soft_reset();
             return true;
         }
         status = Port::inb(IO_BASE + R_STATUS_REG);
@@ -36,10 +59,7 @@ void AtaDriver::cache_flush(const drive d)
     Port::outb(IO_BASE + DRIVE_REG, LBA | DRIVE_REG_CONST_BITS | (d.id << 4));
     Port::outb(IO_BASE + W_COMMAND_REG, CACHE_FLUSH);
 
-    if(wait_bit_unset(BSY))
-    {
-        soft_reset();
-    }
+    wait_bit_unset(BSY);
 };
 
 void AtaDriver::soft_reset()
@@ -57,73 +77,51 @@ void AtaDriver::four_ns_delay()
     Port::inb(IO_BASE + R_STATUS_REG);
 };
 
-bool AtaDriver::read_data_port(void *buffer)
+bool AtaDriver::data_port_do_operation(data_port_op *operation, void *buffer)
 {
-    if(wait_bit_unset(BSY))
+    uint8 status;
+
+    if(wait_bit_unset(BSY) or wait_bit_set(DRQ))
     {
-        soft_reset();
+        status = Port::inb(IO_BASE + R_STATUS_REG);
+        if(status & ERR)
+        {
+            error = Port::inb(IO_BASE + R_ERROR_REG);
+        }
         return true;
     }
 
-    uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
+    status = Port::inb(IO_BASE + R_STATUS_REG);
     size i = 0;
-    while(status & DRQ)
+
+    do
     {
-        uint8 error = Port::inb(IO_BASE + R_ERROR_REG);
-        if(status & ERR)
+        while(status & DRQ)
         {
-            this->error = error;
-            return true;
-        }
-        else if(status & BSY and wait_bit_unset(BSY))
-        {
-            soft_reset();
-            return true;
+            if(status & ERR)
+            {
+                uint8 error = Port::inb(IO_BASE + R_ERROR_REG);
+                this->error = error;
+                return true;
+            }
+
+            operation->perform(buffer, i++);
+            four_ns_delay();
+
+            status = Port::inb(IO_BASE + R_STATUS_REG);
         }
 
-        // Write data to buffer
-        uint16 data = Port::inw(IO_BASE + DATA_REG);
-        ((uint16_s *)buffer)[i++] = data;
-        four_ns_delay();
+        if(wait_bit_unset(BSY))
+        {
+            return true;
+        }
 
         status = Port::inb(IO_BASE + R_STATUS_REG);
-        //display << (uint32)status << ':' << (uint32)i <<' ';
-    }
+    } while(status & DRQ);
 
     this->error = Port::inb(IO_BASE + R_ERROR_REG);
     return status & ERR;
 };
-
-bool AtaDriver::write_data_port(const void *buffer)
-{
-    if(wait_bit_unset(BSY))
-    {
-        soft_reset();
-        return true;
-    }
-
-    uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
-    size i = 0;
-    while(status & DRQ)
-    {
-        uint8 error = Port::inb(IO_BASE + R_ERROR_REG);
-        if(status & ERR)
-        {
-            this->error = error;
-            return true;
-        }
-
-        // Write data to port
-        Port::outw(IO_BASE + DATA_REG, ((uint16_s *)buffer)[i++]);
-        four_ns_delay();
-
-        status = Port::inb(IO_BASE + R_STATUS_REG);
-    }
-
-    this->error = Port::inb(IO_BASE + R_ERROR_REG);
-    return status & ERR;
-};
-
 void AtaDriver::identify(drive d)
 {
     uint8 status;
@@ -144,16 +142,13 @@ void AtaDriver::identify(drive d)
         return;
     }
 
-    if(wait_bit_unset(BSY))
-    {
-        soft_reset();
-        return;
-    }
+    if(wait_bit_unset(BSY)) return;
 
-    if(Port::inb(IO_BASE + LBA_MID) or Port::inb(IO_BASE + LBA_HIGH))
+    if(Port::inb(IO_BASE + LBA_MID) and Port::inb(IO_BASE + LBA_HIGH))
     {
         if(!d.id) is_master_ata = false;
         if(d.id) is_slave_ata = false;
+        return;
     }
 
     status = Port::inb(R_STATUS_REG);
@@ -161,7 +156,8 @@ void AtaDriver::identify(drive d)
     else
     {
         four_ns_delay();
-        read_data_port(identify_buf);
+        read_data_port read_port;
+        data_port_do_operation(&read_port, identify_buf);
     }
 };
 
@@ -173,15 +169,18 @@ AtaDriver::AtaDriver()
     is_slave_ata = true;
 
     cache_flush(MASTER_DRIVE);
-    cache_flush(SLAVE_DRIVE);
-
     identify(MASTER_DRIVE);
+
+    cache_flush(SLAVE_DRIVE);
     identify(SLAVE_DRIVE);
 };
 
 /*if you need to read one sector num_blocks = 1*/
 char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, const drive d)
 {
+    if(!is_drive_exist(d)) return nullptr;
+
+    // Preapare ports and pass command to device
     Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | (d.id << 4) | ((lba >> 24) & 0xF));
     Port::outb(0x1F1, NULL);
     Port::outb(0x1F2, num_blocks);
@@ -190,24 +189,13 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
     Port::outb(0x1F5, (lba >> 16) & 0xFF);
     Port::outb(0x1F7, READ_DATA_CMD);
 
-    char *buffer = (char *)kmalloc(SECTOR_SIZE); // SWITCH TO KMALLOC!!!
-
+    char *buffer = (char *)(0x12000000);// SWITCH TO KMALLOC!!!
     if (buffer == NULL) return NULL;
-
-    // wait device
-     if(wait_bit_set(DRQ))
-     {
-        uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
-        if(status & ERR)
-        {
-            error = Port::inb(IO_BASE + R_ERROR_REG);
-            return nullptr;
-        }
-     }
 
     memset(buffer, 0, SECTOR_SIZE * num_blocks);
 
-    if(read_data_port(buffer))
+    read_data_port read_port;
+    if(data_port_do_operation(&read_port, buffer))
     {
         memset(buffer, 0, SECTOR_SIZE * num_blocks);
         return nullptr;
@@ -219,6 +207,9 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
 /*if you need to write one sector num_blocks = 1*/
 bool AtaDriver::ata_write_sector(const uint32 lba, const uint32 num_blocks, const char* buffer, const drive d)
 {
+    if(!is_drive_exist(d) or buffer == nullptr) return true;
+
+    // Preapare ports and pass command to device
     Port::outb(0x1F6, LBA | DRIVE_REG_CONST_BITS | (d.id << 4) | ((lba >> 24) & 0xF));
     Port::outb(0x1F1, 0x00);
     Port::outb(0x1F2, num_blocks);
@@ -227,21 +218,9 @@ bool AtaDriver::ata_write_sector(const uint32 lba, const uint32 num_blocks, cons
     Port::outb(0x1F5, (lba >> 16) & 0xFF);
     Port::outb(0x1F7, 0x30);
 
-    if (buffer == NULL) return NULL;
-
-    // Wait device
-    if(wait_bit_set(DRQ))
-    {
-        uint8 status = Port::inb(IO_BASE + R_STATUS_REG);
-        if(status & ERR)
-        {
-            error = Port::inb(IO_BASE + R_ERROR_REG);
-            return true;
-        }
-    }
-
-    bool result = write_data_port(buffer);
+    write_data_port write_port;
+    bool result = data_port_do_operation(&write_port, (void *)buffer);
 
     cache_flush(d);
-    return false;
+    return result;
 };

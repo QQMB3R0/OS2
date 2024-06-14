@@ -16,7 +16,8 @@ Fat32Parameter_Block bootsect;
 int Fat32::fat_init()
 {
     AtaDriver ata_d ;
-    uint16* cluster_data = (uint16 *)ata_d.ata_read_sector(0,1);
+    uint16_s* cluster_data = (uint16_s *)ata_d.ata_read_sector(0,1);
+    display << (char *)cluster_data;
     if (cluster_data == NULL) {
 		display<<"Function FAT_initialize: Error reading the first sector of FAT!\n";
 		return -1;
