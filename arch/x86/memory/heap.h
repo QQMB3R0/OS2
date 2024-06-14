@@ -1,37 +1,57 @@
-#define HEAP_H
-#ifdef HEAP_H
+#ifndef KHEAP_H
+#define KHEAP_H
 
 #include "../inc/types.h"
+#include "../io/GlobalObj.h"
+#include "pmm.h"
 #include "memory.h"
-#include "phys_mem.h"
-#include "virt_mem.h"
+// a singly linked list heap block
+typedef struct _kheap_block {
+    struct {
+        uint32 size;  // memory size
+        uint8 is_free; // block is free or not
+    } metadata;
+    struct _kheap_block *next; 
+    void *data;  // data pointer
+} __attribute__((packed)) KHEAP_BLOCK;
 
-#define PAGE_SIZE               4096
-#define MAX_PAGE_ALIGNED_ALLOCS 32
+/**
+ * initialize heap and set total memory size
+*/
+int kheap_init(void *start_addr, void *end_addr);
 
-typedef struct memBlock
-{
-    uint32 size;
-    bool free;
-    uint32 v_addr;
-    uint32 pcount;
-    struct memBlock* next;
-} mem_block;
-extern mem_block *kmalloc_list_head;
-extern mem_block *umalloc_list_head;
+/**
+ * increase the heap memory by size & get its address
+*/
+void *kbrk(int size);
 
-extern uint32 malloc_virt_address;
-extern uint32 kmalloc_phys_addresss;
-extern uint32 total_malloc_pages;
+/**
+ * print list of allocated blocks
+*/
+void kheap_print_blocks();
 
-void merge_free_blocks(mem_block* block);
-void split_block(mem_block* node, const uint32 size);
-void kmalloc_init(const uint32 bytes);
-void* kmallocp(uint32 v_addr) ;
-void* kmalloc(const uint32 size) ;
-void* malloc(uint32 size) ;
-void free(void* ptr) ;
-void* realloc(void* ptr, uint32 size) ;
-void kfree(void* ptr);
+/**
+ * allocate given size if list is null
+ * otherwise try some memory allocation algorithm like best fit etc
+ * to find best block to allocate
+ * # Need to work on internal/external segmentaion problem
+*/
+void *kmalloc(int size);
+
+/**
+ * allocate memory n * size & zeroing out
+*/
+void *kcalloc(int n, int size);
+
+/**
+ * allocate a new block of memory
+ * copy previous block data & set free the previous block
+*/
+void *krealloc(void *ptr, int size);
+
+/**
+ * set free the block
+*/
+void kfree(void *addr);
 
 #endif

@@ -87,6 +87,7 @@ bool AtaDriver::read_data_port(void *buffer)
         four_ns_delay();
 
         status = Port::inb(IO_BASE + R_STATUS_REG);
+        //display << (uint32)status << ':' << (uint32)i <<' ';
     }
 
     this->error = Port::inb(IO_BASE + R_ERROR_REG);
@@ -189,7 +190,7 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
     Port::outb(0x1F5, (lba >> 16) & 0xFF);
     Port::outb(0x1F7, READ_DATA_CMD);
 
-    char *buffer = (char *)(0x12000000); // SWITCH TO KMALLOC!!!
+    char *buffer = (char *)kmalloc(SECTOR_SIZE); // SWITCH TO KMALLOC!!!
 
     if (buffer == NULL) return NULL;
 

@@ -2,32 +2,48 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 1M;
-
-    .multiboot :
-    {
-        *(.multiboot)
-    }
-    .text BLOCK(4K) : ALIGN(4K)
-    {
+    __kernel_section_start = .;
+    /* text section */
+    .text 0x0100000 : {
+        __kernel_text_section_start = .;
+        . = ALIGN(4);
+        /* set multiboot header */
+        LONG(0x1BADB002)
+        LONG(0x00000003)
+        LONG(0xE4524FFB)
+        code = .; _code = .; __code = .;
         *(.text)
-        *(.eh_frame)
-        *(.ctors)
-    }
-
-    .rodata BLOCK(4K) : ALIGN(4k)
-    {
         *(.rodata)
+        . = ALIGN(4096);
+        __kernel_text_section_end = .;
     }
 
-    .data BLOCK(4K) : ALIGN(4K)
-    {
+    /* initialized data section */
+    .data : {
+        __kernel_data_section_start = .;
+        data = .; _data = .; __data = .;
         *(.data)
+        . = ALIGN(4096);
+        __kernel_data_section_end = .;
     }
 
-    .bss BLOCK(4K) : ALIGN(4K)
-    {
-        *(COMMON)
-        *(.bss)
+    /* constant data section */
+    .rodata : {
+        __kernel_rodata_section_start = .;
+        *(.rodata)
+        __kernel_rodata_section_end = .;
     }
+
+    /* un-initialized data section */
+    .bss : {
+        __kernel_bss_section_start = .;
+        bss = .; _bss = .; __bss = .;
+        *(.bss)
+        . = ALIGN(4096);
+        __kernel_bss_section_end = .;
+    }
+
+    end = .; _end = .; __end = .;
+    __kernel_section_end = .;
 }
+

@@ -2,7 +2,7 @@ CC = i686-elf-g++
 LD = ld
 ASM = nasm
 # test -O2 flag
-CFLAGS = -std=c++20 -c -m32 -Wall -ffreestanding -nostdinc -nostdlib -fno-rtti -mgeneral-regs-only
+CFLAGS = -std=c++11 -c -m32 -Wall -ffreestanding -nostdinc -nostdlib -fno-rtti -mgeneral-regs-only
 AFLAGS = -f elf32 -i./mem/
 LDFLAGS = -m elf_i386 $(patsubst %,-L%,$(subst :, ,$(LIBS_PATH))) -lgcc
 QEMUFLAGS =

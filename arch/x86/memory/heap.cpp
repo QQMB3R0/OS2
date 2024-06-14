@@ -1,168 +1,169 @@
 #include "heap.h"
-mem_block* kmalloc_list_head = NULL;
-mem_block* umalloc_list_head = NULL;
- mem_block *malloc_list_head = 0;    // Start of linked list
- uint32 malloc_virt_address = 0;
- uint32 malloc_phys_address = 0;
- uint32 total_malloc_pages  = 0;
 
-page_directory* kmalloc_dir	= 0;
+// start & end addresses pointing to memory
+void *g_kheap_start_addr = NULL, *g_kheap_end_addr = NULL;
+unsigned long g_total_size = 0;
+unsigned long g_total_used_size = 0;
+// list head
+KHEAP_BLOCK *g_head = NULL;
 
-void merge_free_blocks(mem_block* block){
-    mem_block* cur = block;
-    while (cur != NULL && cur->next != NULL)
-    {
-        if (cur->free == true && cur->next->free == true){
-                cur->size += cur->next->size + sizeof(mem_block);
-                if (cur->next->next!=NULL)
-                        cur->next = cur->next->next;
-                else{
-                    cur->next = NULL;
-                    break;
-                }
-        }
-        cur = cur->next;
+/**
+ * initialize heap and set total memory size
+*/
+int kheap_init(void *start_addr, void *end_addr) {
+    if (start_addr > end_addr) {
+        display<<("failed to init kheap\n");
+        return -1;
     }
-    
+    g_kheap_start_addr = start_addr;
+    g_kheap_end_addr = end_addr;
+    g_total_size = (uint32 *)end_addr - (uint32 *)start_addr;
+    g_total_used_size = 0;
+    return 0;
 }
-void split_block(mem_block* node, const uint32 size){
-    mem_block* newnode = (mem_block*)((void*)node + size + sizeof(mem_block));
-    newnode->size = node->size - size - sizeof(mem_block);
-    newnode->free = true;
-    newnode->next = node->next;
-    newnode->v_addr = node->v_addr;
 
-    node->size = size;
-    node->free = false;
-    node->next = newnode;
-    node->pcount -= (size / PAGE_SIZE) + 1;
+/**
+ * increase the heap memory by size & get its address
+*/
+void *kbrk(int size) {
+    void *addr = NULL;
+    if (size <= 0)
+        return NULL;
+    // check memory is available or not
+    if ((int)(g_total_size - g_total_used_size) <= size)
+        return NULL;
+    // add start addr with total previously used memory and difference between each data block pointer
+    addr = g_kheap_start_addr + g_total_used_size + size + sizeof(void *);
+    g_total_used_size += size + sizeof(void *);
+    return addr;
 }
-void kmalloc_init(const uint32 bytes)
-{
-		kmalloc_dir = current_page_directory;
-		total_malloc_pages = bytes / PAGE_SIZE;
-		if (bytes % PAGE_SIZE > 0) total_malloc_pages++;
 
-		malloc_phys_address = (uint32)allocate_blocks(total_malloc_pages);
-		malloc_list_head    = (mem_block*)malloc_virt_address;
-
-		for (uint32 i = 0, virt = malloc_virt_address; i < total_malloc_pages; i++, virt += PAGE_SIZE) {
-			map_page((void*)(malloc_phys_address + i * PAGE_SIZE), (void*)virt);
-			pt_entry* page = get_page(virt);
-			SET_ATTRIBUTE(page, PTE_READ_WRITE);
-		}
-
-		if (kmalloc_list_head != NULL) {
-			kmalloc_list_head->v_addr = malloc_virt_address;
-			kmalloc_list_head->pcount = total_malloc_pages;
-			kmalloc_list_head->size   = (total_malloc_pages * PAGE_SIZE) - sizeof(mem_block);
-			kmalloc_list_head->free   = true;
-			kmalloc_list_head->next   = NULL;
-		}
-
+/**
+ * print list of allocated blocks
+*/
+void kheap_print_blocks() {
+    KHEAP_BLOCK *temp = g_head;
+    display << "Block Size: "<< sizeof(KHEAP_BLOCK)<<"\n";
+    while (temp != NULL) {
+        display <<"size :"<<temp->metadata.size;
+        display <<", free: "<<(uint32)temp->metadata.is_free;
+        display << ", data : "<<(uint32)temp->data;
+        display  <<", curr: "<<(uint32)temp;
+        display <<", next: "<<(uint32)temp->next<<'\n';
+        temp = temp->next;
+    }
 }
-	void* kmallocp(uint32 v_addr) {
-		pt_entry page  = 0;
-		uint32* temp = (uint32*)allocate_page(&page);
-		map_page((void*)temp, (void*)v_addr);
-		SET_ATTRIBUTE(&page, PTE_READ_WRITE);	
-	}
 
-	void* kmalloc(const uint32 size) {
-		if (size <= 0) return 0;
-		if (kmalloc_list_head == NULL) kmalloc_init(size);
-
-		//=============
-		// Find a block
-		//=============
-
-			merge_free_blocks(kmalloc_list_head);
-			mem_block* cur = kmalloc_list_head;
-			while (cur->next != NULL) {
-				if (cur->free == true) {
-					if (cur->size == size) break;
-					if (cur->size > size + sizeof(mem_block)) break;
-				}
-				
-				cur = cur->next;
-			}
-
-		//=============
-		// Find a block
-		//=============
-		// Work with block
-		//=============
-		
-			if (size == cur->size) cur->free = false;
-			else if (cur->size > size + sizeof(mem_block)) split_block(cur, size);
-			else {
-				//=============
-				// Allocate new page
-				//=============
-				
-					uint8 num_pages = 1;
-					while (cur->size + num_pages * PAGE_SIZE < size + sizeof(mem_block))
-						num_pages++;
-
-					uint32 virt = malloc_virt_address + total_malloc_pages * PAGE_SIZE; // TODO: new pages to new blocks. Don`t mix them to avoid pagedir errors in contswitch
-					for (uint8 i = 0; i < num_pages; i++) {
-						kmallocp(virt);
-
-						virt += PAGE_SIZE;
-						cur->size += PAGE_SIZE;
-						total_malloc_pages++;
-					}
-
-					split_block(cur, size);
-
-				//=============
-				// Allocate new page
-				//=============
-			}
-		
-		//=============
-		// Work with block
-		//=============
-
-		return (void*)cur + sizeof(mem_block);
-	}
-	void* malloc(uint32 size) {
-    void* allocated_memory;
-	if (!kmalloc_list_head)
-        kmalloc_init(size);
-
-    allocated_memory = kmalloc(size);
-
-    return allocated_memory;
+bool is_block_free(KHEAP_BLOCK *block) {
+    if (!block)
+        return false;
+    return (block->metadata.is_free == true);
 }
-void free(void* ptr) {
-    if (ptr == NULL) return;
-	kfree(ptr);
-}
-void* realloc(void* ptr, uint32 size) {
-    void* new_data = NULL;
-    if (size) {
-        if(!ptr) return malloc(size);
 
-        new_data = malloc(size);
-        if(new_data) {
-            memcpy(new_data, ptr, size);
-            free(ptr);
+/**
+ * this just check freed memory is greater than the required one
+*/
+KHEAP_BLOCK *worst_fit(int size) {
+    KHEAP_BLOCK *temp = g_head;
+    while (temp != NULL) {
+        if (is_block_free(temp)) {
+            if ((int)temp->metadata.size >= size)
+                return temp;
+        }
+        temp = temp->next;
+    }
+    return NULL;
+}
+
+// allocate a new heap block
+KHEAP_BLOCK *allocate_new_block(int size) {
+    KHEAP_BLOCK *temp = g_head;
+    while (temp->next != NULL) {
+        temp = temp->next;
+    }
+    KHEAP_BLOCK *new_block = (KHEAP_BLOCK *)kbrk(sizeof(KHEAP_BLOCK));
+    new_block->metadata.is_free = false;
+    new_block->metadata.size = size;
+    new_block->data = kbrk(size);
+    new_block->next = NULL;
+    temp->next = new_block;
+    return new_block;
+}
+
+/**
+ * allocate given size if list is null
+ * otherwise try some memory allocation algorithm like best fit etc
+ * to find best block to allocate
+ * # Need to work on internal/external segmentaion problem
+*/
+void *kmalloc(int size) {
+    if (size <= 0)
+        return NULL;
+    if (g_head == NULL) {
+        g_head = (KHEAP_BLOCK *)kbrk(sizeof(KHEAP_BLOCK));
+        g_head->metadata.is_free = false;
+        g_head->metadata.size = size;
+        g_head->next = NULL;
+        g_head->data = kbrk(size);
+        return g_head->data;
+    } else {
+        KHEAP_BLOCK *worst = worst_fit(size);
+        if (worst == NULL) {
+            KHEAP_BLOCK *new_block = allocate_new_block(size);
+            new_block->metadata.is_free = false;
+            new_block->metadata.size = size;
+            new_block->data = kbrk(size);
+            return new_block->data;
+        } else {
+            worst->metadata.is_free = false;
+            return worst->data;
         }
     }
-
-    return new_data;
+    return NULL;
 }
-void kfree(void* ptr)
-{
-		if (ptr == NULL) return;
-		for (mem_block* cur = kmalloc_list_head; cur->next; cur = cur->next) {
-			if ((void*)cur + sizeof(mem_block) == ptr && cur->free == false) {
-				cur->free = true;
-				memset(ptr, 0, cur->size);
-				merge_free_blocks(kmalloc_list_head);
 
-				break;
-			}
+/**
+ * allocate memory n * size & zeroing out
+*/
+void *kcalloc(int n, int size) {
+    if (n < 0 || size < 0)
+        return NULL;
+    void *mem = kmalloc(n * size);
+    memset(mem, 0, n * size);
+    return mem;
+}
+
+/**
+ * allocate a new block of memory
+ * copy previous block data & set free the previous block
+*/
+void *krealloc(void *ptr, int size) {
+    KHEAP_BLOCK *temp = g_head;
+    while (temp != NULL) {
+        if (temp->data == ptr) {
+            KHEAP_BLOCK *new_block = allocate_new_block(size);
+            if ((int)temp->metadata.size > size)
+                memcpy(new_block->data, ptr, size);
+            else
+                memcpy(new_block->data, ptr, temp->metadata.size);
+            temp->metadata.is_free = true;
+            return new_block->data;
         }
+        temp = temp->next;
+    }
+    return NULL;
+}
+
+/**
+ * set free the block
+*/
+void kfree(void *addr) {
+    KHEAP_BLOCK *temp = g_head;
+    while (temp != NULL) {
+        if (temp->data == addr) {
+            temp->metadata.is_free = true;
+            return;
+        }
+        temp = temp->next;
+    }
 }

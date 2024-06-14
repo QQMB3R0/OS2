@@ -424,7 +424,7 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
                 return -1;
             }
             file_to_add->low_word = cluster_to_file & 0xF;
-            pt_entry *get_page(const virtual_address address);
+            //pt_entry *get_page(const virtual_address address);
             file_to_add->height_word = cluster_to_file >> 0x10;	
 			memcpy(metadata_file, file_to_add, sizeof(dir_entry_t));
 
@@ -492,7 +492,7 @@ Content *Fat32::getFile(const char *filePath)
 			
 			int cluster = GET_CLUSTER_FROM_ENTRY(content_meta);
 			while (cluster < END_CLUSTER_32) {
-				uint32* new_content = (uint32*)realloc(content, (content_size + 1) * sizeof(uint32));
+				uint32* new_content = (uint32*)krealloc(content, (content_size + 1) * sizeof(uint32));
 				if (new_content == NULL) {
 					kfree(content);
 					return NULL;

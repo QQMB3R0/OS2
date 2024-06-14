@@ -50,7 +50,7 @@
 
 #define IDENTIFY_BUF_SZ 256
 
-#define WAIT_BIT_DELAY 50
+#define WAIT_BIT_DELAY 500
 
 #define MASTER_DRIVE 0
 #define SLAVE_DRIVE 1
