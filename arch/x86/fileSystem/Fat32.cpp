@@ -11,10 +11,11 @@ uint16 secors_per_cluster;
 uint16 first_fat_sector;
 uint16 first_data_sector;
 uint16 ext_root_cluster;
+Fat32Parameter_Block bootsect;
 
 int Fat32::fat_init()
 {
-    AtaDriver ata_d;
+    AtaDriver ata_d ;
     uint16* cluster_data = (uint16 *)ata_d.ata_read_sector(0,1);
     if (cluster_data == NULL) {
 		display<<"Function FAT_initialize: Error reading the first sector of FAT!\n";
@@ -30,13 +31,14 @@ int Fat32::fat_init()
     
     total_cluster    = data_sectors / bootstruct->Nsectors_per_cluster;
 	first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * bootstruct->dat_size + (bootstruct->Nroot_dir_entries * 32 + bootstruct->Bytes_per_sector - 1) / bootstruct->Bytes_per_sector;
-	if (total_cluster == 0) total_cluster   = bootstruct->total_sector / bootstruct->Nsectors_per_cluster;
+	if (total_cluster == 0) total_cluster  = bootstruct->total_sector / bootstruct->Nsectors_per_cluster;
 	fat_type = 32;
 	first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * ((fat_extBS_32_t*)(bootstruct->extended_section))->table_size_32;
 	secors_per_cluster = bootstruct->Nsectors_per_cluster;
 	bytes_per_secors    = bootstruct->Bytes_per_sector;
-	first_fat_sector    = bootstruct->Nreserved_sectors;
 	ext_root_cluster    = ((fat_extBS_32_t*)(bootstruct->extended_section))->root_cluster;
+	memcpy(&bootsect, bootstruct, 512);
+	first_fat_sector    = bootstruct->Nreserved_sectors;
 
 	kfree(cluster_data);
     return 0;
@@ -424,7 +426,6 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
                 return -1;
             }
             file_to_add->low_word = cluster_to_file & 0xF;
-            //pt_entry *get_page(const virtual_address address);
             file_to_add->height_word = cluster_to_file >> 0x10;	
 			memcpy(metadata_file, file_to_add, sizeof(dir_entry_t));
 
@@ -453,7 +454,7 @@ Content *Fat32::getFile(const char *filePath)
 		char fileNamePart[256];
 		unsigned short start = 0;
 		unsigned int active_cluster;
-
+        fat_type = 32;
 		if (fat_type == 32) active_cluster = ext_root_cluster;
 		else {
             display << "Function getFile: FAT16 and FAT12 are not supported!\n";
@@ -847,4 +848,88 @@ void Fat32::addclustertocontent(Content *content)
 			}
 		}
 
+}
+
+Content *Fat32::FAT_create_content(char *name, bool directory, char *extension)
+{
+    	Content* content = (Content*)kmalloc(sizeof(Content));
+		
+		content->directory = NULL;
+		content->file = NULL;
+
+		if (strlen(name) > 11 || strlen(extension) > 4) {
+			display << "Uncorrect name or ext lenght.\n";
+			return NULL;
+		}
+		
+		if (directory == true) {
+			content->directory = (Directory*)kmalloc(sizeof(Directory));
+			content->directory->files        = NULL;
+			content->directory->subDirectory = NULL;
+			content->directory->next         = NULL;
+			content->directory->data_pointer = NULL;
+
+			content->directory->name = (char*)kmalloc(12);
+			strncpy(content->directory->name, name, 11);
+			
+			content->directory->file_meta = *FAT_create_entry(name, NULL, true, allocateFreeFat(), 0);
+		}
+		else {
+			content->file = (File*)kmalloc(sizeof(File));
+			content->file->data_pointer = NULL;
+			content->file->data         = NULL;
+			content->file->next         = NULL;
+
+			content->file->name = (char*)kmalloc(12);
+			content->file->extesion = (char*)kmalloc(5);
+			strncpy(content->file->name, name, 11);
+			strncpy(content->file->extesion, extension, 4);
+			
+			content->file->file_meta = *FAT_create_entry(name, extension, false, allocateFreeFat(), 1);
+		}
+
+		return content;
+
+    return nullptr;
+}
+
+dir_entry_t *Fat32::FAT_create_entry(const char *name, const char *ext, bool isDir, uint32 firstCluster, uint32 filesize)
+{
+    	dir_entry_t* data =(dir_entry_t*) kmalloc(sizeof(dir_entry_t));
+
+		data->reserved 			= 0; 
+		data->times_tenths 	    = 0;
+		data->creation_time 	= 0;
+		data->creation_date 	= 0;
+		data->date_last_operation = 0;
+
+		char* file_name = (char*)kmalloc(25);
+		strcpy(file_name, name);
+		if (ext) {
+			strcat(file_name, ".");
+			strcat(file_name, ext);
+		}
+		
+		data->low_word 	= firstCluster;
+		data->height_word = firstCluster >> 16;  
+
+		if(isDir == true) {
+			data->byte_size_file  = 0;
+			data->dir_attrs = 0x10; //FILE_DIRECTORY
+		} else {
+			data->byte_size_file  = filesize;
+			data->dir_attrs = 0x20;//FILE_ARCHIVE;
+		}
+
+		data->creation_date = 0x00;
+		data->creation_time = 0x00;
+		data->times_tenths = 0x00;
+
+		if (checkNameFormat(file_name) != 0)
+			convertToFATFormat(file_name);
+
+		strncpy(data->name, file_name, min(11, strlen(file_name)));
+		kfree(file_name);
+
+		return data; 
 }

@@ -8,6 +8,7 @@ int strlen(const char* str);
 char *strncpy(char *s1, const char *s2, int n);
 int strcmp(const char *s1, const char *s2);
 char *strcpy(char* s1, const char* s2);
+char* strcat(char* dest, const char* src) ;
 char* upper_case(char* in);
 void* __rawmemchr (const void* s, int c_in) ;
 char* strpbrk (const char* s, const char* accept) ;

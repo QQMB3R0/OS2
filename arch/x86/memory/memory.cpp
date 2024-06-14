@@ -69,6 +69,10 @@ char *strcpy(char* s1, const char* s2){
 	return s1;
 
 }
+char* strcat(char* dest, const char* src) {
+    strcpy(dest + strlen(dest), src);
+    return dest;
+}
 char* upper_case(char* in){
 	uint16 it;
 	uint16 len = strlen(in);

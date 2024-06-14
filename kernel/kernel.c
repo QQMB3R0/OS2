@@ -122,18 +122,18 @@ void main(unsigned long magic,unsigned long addr)
 	Keyboard keyboard;
 	keyboard.KB_init();
 
-//	cli term;
-//	term.init_cli();
+	cli term;
+	term.init_cli();
 
 	AtaDriver ataDriver;
 
-	char buffer[2048] = "WORKING!!\n";
-	ataDriver.ata_write_sector(0, 1, buffer);
+//	char buffer[2048] = "WORKING!!\n";
+//	ataDriver.ata_write_sector(0, 1, buffer);
 
-	display << "Disk data: ";
-	uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
-	if(buf == nullptr) display << "data empty\n";
-	else display << (char *)buf;
+//	display << "Disk data: ";
+//	uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
+//	if(buf == nullptr) display << "data empty\n";
+//	else display << (char *)buf;
 	empty();
 
 	while(1);

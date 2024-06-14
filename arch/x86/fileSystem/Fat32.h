@@ -3,6 +3,8 @@
 #include "../inc/types.h"
 #include "../io/GlobalObj.h"
 #include "../drivers/ata.h"
+#include "../memory/memory.h"
+#define min(a,b)    ((a) < (b) ? (a) : (b))
 #define	ATTR_READ_ONLY 0x01
 #define	ATTR_HIDDEN 0x02
 #define	ATTR_SYSTEM 0x04
@@ -83,6 +85,7 @@ typedef struct Filestruct
 {
     dir_entry_t file_meta;
     char* extesion;
+    void* data_pointer;
     uint32 content;
     uint32* data;
     int size;
@@ -93,9 +96,12 @@ typedef struct FATDirectory
 {
     dir_entry_t file_meta;
     uint32 content;
-    char name[9];
+    char* name;
+    void* data_pointer;
     struct FATDirectory* next; 
     struct Filestruct* files; 
+    struct FATDirectory* subDirectory;
+
 //    struct FATDirectory* subDirectory;
 } Directory;
 typedef struct FATContent
@@ -162,9 +168,11 @@ public:
     char* convertToFATFormat(char* in);
     short checkNameFormat(const char* name);
     void addclustertocontent(Content* content);
+    Content* FAT_create_content(char* name, bool directory, char* extension);
+
+    dir_entry_t* FAT_create_entry(const char* name, const char* ext, bool isDir, uint32 firstCluster, uint32 filesize);
+
 
     int fat_init();
- 
-
 };
 #endif
