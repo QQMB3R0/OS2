@@ -127,7 +127,7 @@ struct f32 {
 
 class Fat32
 {
-private:
+public:
     //fat
     int fat_read(uint16 numCluster);
     int fat_write(uint16 numCluster,uint16 table_value);
@@ -162,7 +162,9 @@ private:
     char* convertToFATFormat(char* in);
     short checkNameFormat(const char* name);
     void addclustertocontent(Content* content);
-public:
+
     int fat_init();
+ 
+
 };
 #endif
