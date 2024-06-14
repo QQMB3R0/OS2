@@ -50,7 +50,7 @@
 
 #define IDENTIFY_BUF_SZ 256
 
-#define WAIT_BIT_DELAY 50
+#define WAIT_BIT_DELAY 20000
 
 #define MASTER_DRIVE 0
 #define SLAVE_DRIVE 1
@@ -66,6 +66,24 @@
 #define BBK (1 << 7)
 
 using size = uint32;
+
+class data_port_op
+{
+    public:
+        virtual void perform(void *buffer, const size indx) = 0;
+};
+
+class write_data_port : public data_port_op
+{
+    public:
+        void perform(void *buffer, const size indx) override final;
+};
+
+class read_data_port : public data_port_op
+{
+    public:
+        void perform(void *buffer, size indx) override final;
+};
 
 struct drive
 {
@@ -101,21 +119,23 @@ class AtaDriver
                              const char* buffer,
                              const drive d = MASTER_DRIVE
                              );
+        /**
+          * ATA device delay 4 nanoseconds
+          */
         void four_ns_delay();
         /**
           * @return error property.
           */
-        uint8 getError();
+        uint8 get_error();
         void soft_reset();
-        void identify(drive d);
         /**
-          * @eturn true if ERR bit in the status register set
+          * execute IDENTIFY command for ATA device.
           */
-        bool read_data_port(void *buffer);
+        void identify(drive d);
         /**
           * @return true if ERR bit in the status register set
           */
-        bool write_data_port(const void *buffer);
+        bool data_port_do_operation(data_port_op *operation, void *buffer);
         /**
           * @return true if bit is not set. False in otherwise.
           */
@@ -124,12 +144,18 @@ class AtaDriver
           * @return true if bit is not unset. False in otherwise.
           */
         bool wait_bit_unset(uint8 status_reg_bit);
-
         /**
           * Flush disk cache
           *
           * @param d Drive id (master or slave)
           */
         void cache_flush(const drive d);
+        /**
+          * Check if drive is exist
+          *
+          * @param d is drive id
+          * @result false if drive not exist, true in otherwise
+          */
+          bool is_drive_exist(const drive d);
 };
 #endif
