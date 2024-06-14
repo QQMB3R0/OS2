@@ -1,6 +1,5 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
-//#include "keyboard_map.h"
 #include "Port.h"
 #include "GlobalObj.h"
 #define KEYBOARD_DATA_PORT 0x60
@@ -48,11 +47,15 @@ const unsigned char keyboard_map[128] =
 class Keyboard
 {
 private:
-    /* data */
+    char k;
 public:
-    void KB_init();
+    void KB_init(void);
+    void setChar(char c);
     char getChar();
+    int get_scanCode();
 };
+char getChar();
 extern "C" void ih_keyboard();
-
+extern "C" void keyboard_handler();
+extern "C" void pause();
 #endif
