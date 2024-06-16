@@ -1,45 +1,67 @@
 #include "Fat32.h"
 
-uint16 fat_size;
-uint16 fat_type;
-uint16 total_cluster;
-uint16 total_sectors;
+uint16_s fat_size;
+uint16_s fat_type;
+uint16_s total_cluster;
+uint16_s total_sectors;
 
-uint16 bytes_per_secors;
-uint16 secors_per_cluster;
+uint16_s bytes_per_secors;
+uint16_s secors_per_cluster;
 
-uint16 first_fat_sector;
-uint16 first_data_sector;
-uint16 ext_root_cluster;
+uint16_s first_fat_sector;
+uint16_s first_data_sector;
+uint16_s ext_root_cluster;
 Fat32Parameter_Block bootsect;
 
 int Fat32::fat_init()
 {
     AtaDriver ata_d ;
-    uint16_s* cluster_data = (uint16_s *)ata_d.ata_read_sector(0,1);
-    display << (char *)cluster_data;
-    if (cluster_data == NULL) {
-		display<<"Function FAT_initialize: Error reading the first sector of FAT!\n";
-		return -1;
-	}
-
-    Fat32Parameter_Block* bootstruct = (Fat32Parameter_Block*)cluster_data;
-    total_sectors = bootstruct->total_sector;
-    fat_size = ((fat_extBS_32_t*)bootstruct->extended_section)->table_size_32;
-    int root_dir_sectors = ((bootstruct->Nroot_dir_entries * 32) + (bootstruct->Bytes_per_sector - 1)) / bootstruct->Bytes_per_sector;
-    int data_sectors     = total_sectors - (bootstruct->Nreserved_sectors + (bootstruct->fat_number * fat_size) + root_dir_sectors);
+    if (!ata_d.is_drive_exist(0))
+    {
+        display << "Function FAT_initialize: drive not exist!";
+        return NULL;
+    }else
+    {
+        ata_d.identify(0);
+    }
+    
+    uint16_s* cluster_data = ata_d.get_identify_buf();
+    Fat32Parameter_Block* bootstruct;
+    bootstruct->bytes_per_sector = cluster_data[5];
+    bootstruct->sectors_per_track= cluster_data[6];
+    bootstruct->sectors_per_cluster = 2;
+    bootstruct->total_sectors_32 = cluster_data[61];
+    bootstruct->reserved_sector_count = 2;
+    bootstruct->table_count = 2;
+    bootstruct->root_entry_count = 0;
+    memcpy(&bootsect,bootstruct,512);
+    fat_type = 32;
+    total_cluster = bootstruct->total_sectors_32 / bootstruct->bytes_per_sector;
+    first_fat_sector = bootstruct->reserved_sector_count;
+    ext_root_cluster = 2;
+    //bootstruct->bytes_per_sector = *((unsigned short*)(cluster_data + 11));
+    //Fat32Parameter_Block* bootstruct = (Fat32Parameter_Block*)cluster_data;
+    //total_sectors = bootstruct->total_sectors_32;
+    //display<<"Function FAT_initialize: bytes_per_sector:" << (uint32)bootstruct->bytes_per_sector<<'\n';
+    //fat_size = ((fat_extBS_32_t*)bootstruct->extended_section)->table_size_32;
+    //display<<"Function FAT_initialize: sectors_per_track:" << (uint32)bootstruct->sectors_per_track<<'\n';
+    //display<<"Function FAT_initialize: total_sectors_32:" << (uint32)bootstruct->total_sectors_32<<'\n';
+    //display<<"Function FAT_initialize: reserved_sector_count:" << (uint32)bootstruct->reserved_sector_count<<'\n';
+    
+    //int root_dir_sectors = ((bootstruct->Nroot_dir_entries * 32) + (bootstruct->Bytes_per_sector - 1)) / bootstruct->Bytes_per_sector;
+    //int data_sectors     = total_sectors - (bootstruct->Nreserved_sectors + (bootstruct->fat_number * fat_size) + root_dir_sectors);
 
     
-    total_cluster    = data_sectors / bootstruct->Nsectors_per_cluster;
-	first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * bootstruct->dat_size + (bootstruct->Nroot_dir_entries * 32 + bootstruct->Bytes_per_sector - 1) / bootstruct->Bytes_per_sector;
-	if (total_cluster == 0) total_cluster  = bootstruct->total_sector / bootstruct->Nsectors_per_cluster;
-	fat_type = 32;
-	first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * ((fat_extBS_32_t*)(bootstruct->extended_section))->table_size_32;
-	secors_per_cluster = bootstruct->Nsectors_per_cluster;
-	bytes_per_secors    = bootstruct->Bytes_per_sector;
-	ext_root_cluster    = ((fat_extBS_32_t*)(bootstruct->extended_section))->root_cluster;
-	memcpy(&bootsect, bootstruct, 512);
-	first_fat_sector    = bootstruct->Nreserved_sectors;
+    //total_cluster    = data_sectors / bootstruct->Nsectors_per_cluster;
+	//first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * bootstruct->dat_size + (bootstruct->Nroot_dir_entries * 32 + bootstruct->Bytes_per_sector - 1) / bootstruct->Bytes_per_sector;
+	//if (total_cluster == 0) total_cluster  = bootstruct->total_sector / bootstruct->Nsectors_per_cluster;
+	//fat_type = 32;
+	//first_data_sector = bootstruct->Nreserved_sectors + bootstruct->fat_number * ((fat_extBS_32_t*)(bootstruct->extended_section))->table_size_32;
+	//secors_per_cluster = bootstruct->Nsectors_per_cluster;
+	//bytes_per_secors    = bootstruct->Bytes_per_sector;
+	//ext_root_cluster    = ((fat_extBS_32_t*)(bootstruct->extended_section))->root_cluster;
+	//memcpy(&bootsect, bootstruct, 512);
+	//first_fat_sector    = bootstruct->Nreserved_sectors;
 
 	kfree(cluster_data);
     return 0;
@@ -47,7 +69,7 @@ int Fat32::fat_init()
 
 
 /*from https://wiki.osdev.org/FAT#FAT_32 (FAT 32 and exFAT)*/
-int Fat32::fat_read(uint16 numCluster)
+int Fat32::fat_read(uint16_s numCluster)
 {
     if (numCluster < 2 || numCluster > total_cluster)
     {
@@ -57,18 +79,18 @@ int Fat32::fat_read(uint16 numCluster)
     AtaDriver ata_d;
     if (fat_type == 32)
     {
-        uint16 cluster_size = bytes_per_secors * secors_per_cluster;
-        uint16 fat_offset = numCluster * 4;
-        uint16 fat_sector = first_fat_sector + (fat_offset / cluster_size);
-        uint16 ent_offset = fat_offset % cluster_size;
-        uint16* data_clusters = (uint16 *)ata_d.ata_read_sector(fat_sector, numCluster);
+        uint16_s cluster_size = bytes_per_secors * secors_per_cluster;
+        uint16_s fat_offset = numCluster * 4;
+        uint16_s fat_sector = first_fat_sector + (fat_offset / cluster_size);
+        uint16_s ent_offset = fat_offset % cluster_size;
+        uint16_s* data_clusters = (uint16_s *)ata_d.ata_read_sector(fat_sector, numCluster);
 
         if (data_clusters == NULL)
         {
             display<<"Function FAT_read: Could not read sector that contains FAT32 table entry needed.\n";
             return -1;
         }
-        uint16 table_value = data_clusters[ent_offset];
+        uint16_s table_value = data_clusters[ent_offset];
         table_value &= 0x0FFFFFFF;//ignore hight 4bits
 
         kfree(data_clusters);
@@ -80,7 +102,7 @@ int Fat32::fat_read(uint16 numCluster)
     return -1;
 }
 
-int Fat32::fat_write(uint16 numCluster, uint16 table_value)
+int Fat32::fat_write(uint16_s numCluster, uint16_s table_value)
 {
     if (numCluster < 2 || numCluster > total_cluster)
     {
@@ -90,12 +112,12 @@ int Fat32::fat_write(uint16 numCluster, uint16 table_value)
     AtaDriver ata_d;
     if (fat_type == 32)
     {
-        uint16 cluster_size = bytes_per_secors * secors_per_cluster;
-        uint16 fat_offset = numCluster * 4;
-        uint16 fat_sector = first_fat_sector + (fat_offset / cluster_size);
-        uint16 ent_offset = fat_offset % cluster_size;
+        uint16_s cluster_size = bytes_per_secors * secors_per_cluster;
+        uint16_s fat_offset = numCluster * 4;
+        uint16_s fat_sector = first_fat_sector + (fat_offset / cluster_size);
+        uint16_s ent_offset = fat_offset % cluster_size;
 
-        uint16* data_clusters = (uint16 *)ata_d.ata_read_sector(fat_sector, numCluster);
+        uint16_s* data_clusters = (uint16_s *)ata_d.ata_read_sector(fat_sector, numCluster);
 
         if (data_clusters == NULL)
         {
@@ -116,10 +138,10 @@ int Fat32::fat_write(uint16 numCluster, uint16 table_value)
     return -1;
 }
 
-uint16 Fat32::allocateFreeFat()
+uint16_s Fat32::allocateFreeFat()
 {
-    uint16 cluster = 2;
-	uint16 clusterStatus = FREE_CLUSTER_32;
+    uint16_s cluster = 2;
+	uint16_s clusterStatus = FREE_CLUSTER_32;
     while (cluster < total_cluster)
     {
         clusterStatus = fat_read(cluster);
@@ -147,9 +169,9 @@ uint16 Fat32::allocateFreeFat()
     return BAD_CLUSTER_32;
 }
 
-int Fat32::deallocateCluster(uint16 cluster_number)
+int Fat32::deallocateCluster(uint16_s cluster_number)
 {
-    uint16 status = fat_read(cluster_number);
+    uint16_s status = fat_read(cluster_number);
     if (free_cluster_fat(status) == true) 
         return 0;
     else if (status < 0)
@@ -166,7 +188,7 @@ int Fat32::deallocateCluster(uint16 cluster_number)
     
 }
 
-bool Fat32::fat_cluster_end(uint16 cluster)
+bool Fat32::fat_cluster_end(uint16_s cluster)
 {
     if (cluster == END_CLUSTER_32)
         return true;
@@ -174,21 +196,21 @@ bool Fat32::fat_cluster_end(uint16 cluster)
     return false;
 }
 
-bool Fat32::fat_cluster_bad(uint16 cluster)
+bool Fat32::fat_cluster_bad(uint16_s cluster)
 {
     if (cluster == BAD_CLUSTER_32)
         return true;    
     return false;
 }
 
-bool Fat32::free_cluster_fat(uint16 cluster)
+bool Fat32::free_cluster_fat(uint16_s cluster)
 {
     if(cluster == FREE_CLUSTER_32)
         return true;
     return false;
 }
 
-uint16* Fat32::cluster_read(uint16 cluster_number)
+uint16_s* Fat32::cluster_read(uint16_s cluster_number)
 {
     if (cluster_number < 2 || cluster_number > total_cluster)
     {
@@ -197,8 +219,8 @@ uint16* Fat32::cluster_read(uint16 cluster_number)
     }
     AtaDriver ata_d;
 
-   uint16 start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
-   uint16* data_clusster = (uint16 *)ata_d.ata_read_sector(start_sec,secors_per_cluster);
+   uint16_s start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
+   uint16_s* data_clusster = (uint16_s *)ata_d.ata_read_sector(start_sec,secors_per_cluster);
     if (data_clusster == NULL)
     {
         display<<"Function FAT_write: Could not read sector that contains FAT32 table entry needed.\n";
@@ -207,7 +229,7 @@ uint16* Fat32::cluster_read(uint16 cluster_number)
     return data_clusster;
 }
 
-int Fat32::cluster_write(void* write_data, uint16 cluster_number)
+int Fat32::cluster_write(void* write_data, uint16_s cluster_number)
 {
     if (cluster_number < 2 || cluster_number > total_cluster)
     {
@@ -216,7 +238,7 @@ int Fat32::cluster_write(void* write_data, uint16 cluster_number)
     }
     AtaDriver ata_d;
 
-    uint16 start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
+    uint16_s start_sec = (cluster_number - 2) * secors_per_cluster + first_data_sector;
     if (ata_d.ata_write_sector(start_sec, secors_per_cluster, (const char *)write_data)!=1)
     {
         display << "Function cluster_write: An error occured with ata_write_sector, the area in sector";
@@ -226,24 +248,24 @@ int Fat32::cluster_write(void* write_data, uint16 cluster_number)
     return 0;
 }
 
-int Fat32::setClusterFree(uint16 cluster_number)
+int Fat32::setClusterFree(uint16_s cluster_number)
 {
     if (cluster_number == FREE_CLUSTER_32)
     return fat_write(cluster_number, FREE_CLUSTER_32);
     
 }
 
-int Fat32::setClusterEnd(uint16 cluster_number)
+int Fat32::setClusterEnd(uint16_s cluster_number)
 {
     if (cluster_number == END_CLUSTER_32)
     return fat_write(cluster_number, END_CLUSTER_32);
 }
 
-int Fat32::dirList(const uint16 cluster, uint8 dirrAttributes, bool exclusive)
+int Fat32::dirList(const uint16_s cluster, uint8 dirrAttributes, bool exclusive)
 {
-    uint16* data_clusster = cluster_read(cluster);
+    uint16_s* data_clusster = cluster_read(cluster);
     dir_entry_t* metadata_file = (dir_entry_t*)data_clusster;
-    uint16 meta_pointer_it_count = 0;
+    uint16_s meta_pointer_it_count = 0;
     if (data_clusster == NULL)
     {
         display<<"Function dirList: Could not read sector that contains FAT32 table entry needed.\n";
@@ -267,7 +289,7 @@ int Fat32::dirList(const uint16 cluster, uint8 dirrAttributes, bool exclusive)
             }
             else
             {
-                uint16 next_cluster = fat_read(cluster);
+                uint16_s next_cluster = fat_read(cluster);
                 if (fat_cluster_end(next_cluster)==true)
                 break;
                 else if (next_cluster < 0)
@@ -305,7 +327,7 @@ int Fat32::dirList(const uint16 cluster, uint8 dirrAttributes, bool exclusive)
     return 0;
 }
 
-int Fat32::dirSearch(const char *filepart, const uint16 cluster, dir_entry_t *file, uint16 *entryOffset)
+int Fat32::dirSearch(const char *filepart, const uint16_s cluster, dir_entry_t *file, uint16_s *entryOffset)
 {
     if (cluster < 2 || cluster > total_cluster)
     {
@@ -316,14 +338,14 @@ int Fat32::dirSearch(const char *filepart, const uint16 cluster, dir_entry_t *fi
     strcpy(searchName,filepart);
     if (checkNameFormat(searchName)!=0)
         convertToFATFormat(searchName);
-    uint16* data_clusster = cluster_read(cluster);
+    uint16_s* data_clusster = cluster_read(cluster);
     if (data_clusster == NULL)
     {
         display<<"Function dirSearch: Could not read sector that contains FAT32 table entry needed.\n";
         return -1;
     }
     dir_entry_t* metadata_file = (dir_entry_t*)data_clusster;
-    uint16 meta_pointer_it_count = 0;
+    uint16_s meta_pointer_it_count = 0;
     while (1)
     {
         if (metadata_file->name[0] == ENTRY_END)
@@ -337,7 +359,7 @@ int Fat32::dirSearch(const char *filepart, const uint16 cluster, dir_entry_t *fi
             }
             else
             {
-                uint16 next_cluster = fat_read(cluster);
+                uint16_s next_cluster = fat_read(cluster);
                 next_cluster = allocateFreeFat();
                 if(fat_cluster_end(next_cluster) == true) break;
                 else if (next_cluster < 0)
@@ -365,17 +387,17 @@ int Fat32::dirSearch(const char *filepart, const uint16 cluster, dir_entry_t *fi
     return -2;
 }
 
-int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
+int Fat32::dirAdd(const uint16_s cluster, dir_entry_t *file_to_add)
 {
     AtaDriver ata_d;
-    uint16* data_clusster = cluster_read(cluster);
+    uint16_s* data_clusster = cluster_read(cluster);
     if (data_clusster == NULL)
     {
         display<<"Function dirAdd: Could not read sector that contains FAT32 table entry needed.\n";
         return -1;
     }
     dir_entry_t* metadata_file = (dir_entry_t*)data_clusster;
-    uint16 meta_pointer_it_count = 0;
+    uint16_s meta_pointer_it_count = 0;
     while (1)
     {
         if (metadata_file->name[0] != ENTRY_FREE && metadata_file->name[0] != ENTRY_END)
@@ -387,7 +409,7 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
             }
             else
             {
-                uint16 next_cluster = fat_read(cluster);
+                uint16_s next_cluster = fat_read(cluster);
                 if (fat_cluster_end(next_cluster) == true)
                 {
                     next_cluster = allocateFreeFat();
@@ -418,7 +440,7 @@ int Fat32::dirAdd(const uint16 cluster, dir_entry_t *file_to_add)
             file_to_add->time_last_operation = file_to_add->creation_date;
             file_to_add->date_last_operation = file_to_add->creation_time;
 
-            uint16 cluster_to_file = allocateFreeFat();
+            uint16_s cluster_to_file = allocateFreeFat();
             display << "Function dirAdd: the new cluster for the file is ";
             if (fat_cluster_bad(cluster_to_file)== true)
             {
@@ -455,7 +477,6 @@ Content *Fat32::getFile(const char *filePath)
 		char fileNamePart[256];
 		unsigned short start = 0;
 		unsigned int active_cluster;
-        fat_type = 32;
 		if (fat_type == 32) active_cluster = ext_root_cluster;
 		else {
             display << "Function getFile: FAT16 and FAT12 are not supported!\n";
@@ -536,7 +557,29 @@ Content *Fat32::getFile(const char *filePath)
 			kfree(name_pointer);
 			return fatContent;
         }
-    return nullptr;
+        else
+        {
+            display << "Function getFile: it is a Directory\n";
+            //fatContent->directory = (Directory*)kmalloc(sizeof(Directory));
+            //fatContent->directory->file_meta 	= content_meta;
+			//fatContent->directory->name             = (char*)kmalloc(11);
+			//fatContent->directory->files            = NULL;
+			//fatContent->directory->subDirectory     = NULL;
+			//fatContent->directory->next             = NULL;
+			//fatContent->directory->data_pointer     = NULL;
+			
+			//char* name = (char*)kmalloc(13);
+			//char* name_pointer = name;
+			
+			//strcpy(name, content_meta.name);
+			//strncpy(fatContent->directory->name, strtok(name, " "), 11);
+
+			//kfree(name_pointer);
+			
+			//return fatContent;
+
+        }
+        
 }
 
 int Fat32::writeFile(Content *content, char *data)
@@ -606,7 +649,7 @@ int Fat32::writeFile(Content *content, char *data)
 				if (strstr(previous_data, sector_data) != 0) {
                     char clear[secors_per_cluster];
 		            memset(clear, 0, secors_per_cluster);
-                    uint16 start_sect = (cluster - 2) * (unsigned short)secors_per_cluster + first_data_sector;
+                    uint16_s start_sect = (cluster - 2) * (unsigned short)secors_per_cluster + first_data_sector;
                     AtaDriver atad;
                     atad.ata_write_sector(start_sect, secors_per_cluster, (const char *)clear);
 					if (cluster_write(sector_data, cluster) != 0) {
@@ -738,10 +781,10 @@ void Fat32::convertFromFATFormat(char *in, char *out)
 
 char* Fat32::convertToFATFormat(char *in)
 {
-    uint16 count = 0;
+    uint16_s count = 0;
     upper_case(in);
     char Name[13] = {'\0'};
-    uint16 dotPos = 0;
+    uint16_s dotPos = 0;
     while (count <= 8)
     {
         if (in[count] == '.' || in[count] == '\0')
@@ -760,7 +803,7 @@ char* Fat32::convertToFATFormat(char *in)
         count = 8;
         dotPos = 8;
     }
-    uint16 exCount = 8;
+    uint16_s exCount = 8;
     while (exCount < 11)
     {
         if (in[exCount] != '\0')
@@ -827,7 +870,7 @@ void Fat32::addclustertocontent(Content *content)
     dir_entry_t content_meta;
 	if (content->directory != NULL) content_meta = content->directory->file_meta;
 	else if (content->file != NULL) content_meta = content->file->file_meta;
-	uint16 cluster = GET_CLUSTER_FROM_ENTRY(content_meta);
+	uint16_s cluster = GET_CLUSTER_FROM_ENTRY(content_meta);
 	while (fat_cluster_end(cluster) == false) {
 		if (fat_cluster_bad(cluster)==true)
             break;
@@ -837,7 +880,7 @@ void Fat32::addclustertocontent(Content *content)
 	}
 
 	if (fat_cluster_end(cluster) == true) {
-		uint16 newCluster = allocateFreeFat();
+		uint16_s newCluster = allocateFreeFat();
 
 			if ((newCluster == BAD_CLUSTER_32 && fat_type == 32)) //allocation error
 			{

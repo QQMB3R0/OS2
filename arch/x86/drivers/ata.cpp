@@ -20,7 +20,12 @@ void read_data_port::perform(void *buffer, const size indx)
 uint8 AtaDriver::get_error()
 {
     return error;
-};
+}
+
+uint16_s *AtaDriver::get_identify_buf()
+{
+    return this->identify_buf;
+}
 
 bool AtaDriver::wait_bit_set(uint8 status_reg_bit)
 {
@@ -189,7 +194,7 @@ char *AtaDriver::ata_read_sector(const uint32 lba, const uint32 num_blocks, cons
     Port::outb(0x1F5, (lba >> 16) & 0xFF);
     Port::outb(0x1F7, READ_DATA_CMD);
 
-    char *buffer = (char *)(0x12000000);// SWITCH TO KMALLOC!!!
+    char *buffer = (char *)kmalloc(SECTOR_SIZE * num_blocks);// SWITCH TO KMALLOC!!!
     if (buffer == NULL) return NULL;
 
     memset(buffer, 0, SECTOR_SIZE * num_blocks);

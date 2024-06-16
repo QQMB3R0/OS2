@@ -27,22 +27,22 @@
 #define LOWERCASE_ISSUE 0x01
 struct Fat32Parameter_Block
 {
-    uint8  jmp[3];
-    uint64 OEM_identifier;
-    uint16 Bytes_per_sector;
-    uint8  Nsectors_per_cluster;
-    uint16 Nreserved_sectors;
-    uint8  fat_number;
-    uint16 Nroot_dir_entries;
-    uint16 total_sector_16;
-    uint8  media;
-    uint16 dat_size;
-    uint16 sectors_per_track;
-    uint16 Nheads;
-    uint32 hidden_sector;
-	uint32 total_sector;
+	unsigned char 		bootjmp[3];
+	unsigned char 		oem_name[8];
+	unsigned short 	    bytes_per_sector;
+	unsigned char		sectors_per_cluster;
+	unsigned short		reserved_sector_count;
+	unsigned char		table_count;
+	unsigned short		root_entry_count;
+	unsigned short		total_sectors_16;
+	unsigned char		media_type;
+	unsigned short		table_size_16;
+	unsigned short		sectors_per_track;
+	unsigned short		head_side_count;
+	unsigned int 		hidden_sector_count;
+	unsigned int 		total_sectors_32;
 
-    unsigned char extended_section[54];
+	unsigned char		extended_section[54];
 }__attribute__((packed));
 
 typedef struct fat_extBS_32
@@ -71,12 +71,12 @@ typedef struct dir_entry {
     uint8 reserved;
     uint8 times_tenths;
     uint8 creation_time;
-    uint16 creation_date;
-    uint16 last_access;
-    uint16 height_word;
-    uint16 time_last_operation;
-    uint16 date_last_operation;
-    uint16 low_word;
+    uint16_s creation_date;
+    uint16_s last_access;
+    uint16_s height_word;
+    uint16_s time_last_operation;
+    uint16_s date_last_operation;
+    uint16_s low_word;
     uint32 byte_size_file;
 
 }__attribute__((packed)) 
@@ -100,7 +100,7 @@ typedef struct FATDirectory
     void* data_pointer;
     struct FATDirectory* next; 
     struct Filestruct* files; 
-    struct FATDirectory* subDirectory;
+    struct FATDirectuint16ory* subDirectory;
 
 //    struct FATDirectory* subDirectory;
 } Directory;
@@ -135,24 +135,24 @@ class Fat32
 {
 public:
     //fat
-    int fat_read(uint16 numCluster);
-    int fat_write(uint16 numCluster,uint16 table_value);
-    uint16 allocateFreeFat();
-    int deallocateCluster(uint16 cluster_number);
-    bool fat_cluster_end(uint16 cluster);
-    bool fat_cluster_bad(uint16 cluster);
-    bool free_cluster_fat(uint16 cluster);
+    int fat_read(uint16_s numCluster);
+    int fat_write(uint16_s numCluster,uint16_s table_value);
+    uint16_s allocateFreeFat();
+    int deallocateCluster(uint16_s cluster_number);
+    bool fat_cluster_end(uint16_s cluster);
+    bool fat_cluster_bad(uint16_s cluster);
+    bool free_cluster_fat(uint16_s cluster);
 
     //cluster
-    uint16* cluster_read(uint16 cluster_number);
-    int cluster_write(void* write_data,uint16 cluster_number);
-    int setClusterFree(uint16 cluster_number);
-    int setClusterEnd(uint16 cluster_number);
+    uint16_s* cluster_read(uint16_s cluster_number);
+    int cluster_write(void* write_data,uint16_s cluster_number);
+    int setClusterFree(uint16_s cluster_number);
+    int setClusterEnd(uint16_s cluster_number);
 
     //dir
-    int dirList(const uint16 cluster,uint8 dirrAttributes, bool exclusive);
-    int dirSearch(const char* filepart,const uint16 cluster ,dir_entry_t* file, uint16* entryOffset);
-    int dirAdd(const uint16 cluster, dir_entry_t* file_to_add);
+    int dirList(const uint16_s cluster,uint8 dirrAttributes, bool exclusive);
+    int dirSearch(const char* filepart,const uint16_s cluster ,dir_entry_t* file, uint16_s* entryOffset);
+    int dirAdd(const uint16_s cluster, dir_entry_t* file_to_add);
 
     //file
     Content* getFile(const char* filePath);

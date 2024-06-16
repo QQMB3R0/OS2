@@ -50,7 +50,7 @@
 
 #define IDENTIFY_BUF_SZ 256
 
-#define WAIT_BIT_DELAY 20000
+#define WAIT_BIT_DELAY 1000000
 
 #define MASTER_DRIVE 0
 #define SLAVE_DRIVE 1
@@ -127,6 +127,7 @@ class AtaDriver
           * @return error property.
           */
         uint8 get_error();
+        uint16_s* get_identify_buf();
         void soft_reset();
         /**
           * execute IDENTIFY command for ATA device.

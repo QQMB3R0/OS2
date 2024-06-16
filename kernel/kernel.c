@@ -99,6 +99,7 @@ int get_kernel_memory_map(KERNEL_MEMORY_MAP *kmap, MULTIBOOT_INFO *mboot_info) {
 }
 
 void empty(){};
+
 void main(unsigned long magic,unsigned long addr)
 {
 	MULTIBOOT_INFO *mboot_info;
@@ -110,7 +111,6 @@ void main(unsigned long magic,unsigned long addr)
 	Keyboard keyboard;
 	keyboard.KB_init();
 
-	asm volatile("sti");
 	mboot_info = (MULTIBOOT_INFO *)addr;
 	if (get_kernel_memory_map(&g_kmap, mboot_info) < 0) {
         display<<"error: failed to get kernel memory map\n";
@@ -124,21 +124,27 @@ void main(unsigned long magic,unsigned long addr)
     	void *start = pmm_alloc_blocks(20);
     	void *end = start + (pmm_next_free_frame(1) * PMM_BLOCK_SIZE);
     	kheap_init(start, end);
-	//Fat32 fs;
-	//fs.fat_init();
+	Fat32 fs;
+	fs.fat_init();
+	display << "Fat init!\n";
+	char* current_path = "HOME\\";
+	char* fileName = "filename";
+        Content* content = fs.FAT_create_content(fileName,true,"\0");
+        fs.setFile(current_path,content);
 
 	//cli term;
 	//term.init_cli();
+	asm volatile("sti");
 
-	AtaDriver ataDriver ;
+	//AtaDriver ataDriver ;
 
-	char buffer[2048] = "WORKING!!\n";
-	ataDriver.ata_write_sector(0, 1, buffer);
+	//char buffer[2048] = "WORKING52!!\n";
+	//ataDriver.ata_write_sector(0, 1, buffer);
 
-	display << "Disk data: ";
-	uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
-	if(buf == nullptr) display << "data empty\n";
-	else display << (char *)buf;
+	//display << "Disk data: ";
+	//uint16_s *buf = (uint16_s *)ataDriver.ata_read_sector(0, 1);
+	//if(buf == nullptr) display << "data empty\n";
+	//else display << (char *)buf;
 	empty();
 
 	while(1);

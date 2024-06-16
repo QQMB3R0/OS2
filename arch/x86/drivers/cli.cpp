@@ -90,8 +90,8 @@ void cli::execute_command(char *Command)
     {
         display << "\nyour command: "<<command;
         display << "\nyour filename: "<<filename<<"\n";
-        Content* content = fs.FAT_create_content(filename,true,"\0");
-        fs.setFile(current_path,content);
+        //Content* content = fs.FAT_create_content(filename,true,"\0");
+        //fs.setFile(current_path,content);
     }
     if (strcmp(command,COMMAND_OUT_DIR)==0)
     {
